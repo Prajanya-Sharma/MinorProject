@@ -36,7 +36,7 @@ export default function BrowsePage() {
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState<Filters>({
     location: "",
-    priceRange: [5, 50],
+    priceRange: [0, 100], // Changed default priceRange from [5, 50] to [0, 100] to include all price ranges
     availableOnly: false,
     lotTypes: [],
     distance: "",
@@ -92,7 +92,7 @@ export default function BrowsePage() {
   const clearFilters = useCallback(() => {
     const defaultFilters: Filters = {
       location: "",
-      priceRange: [5, 50],
+      priceRange: [0, 100], // Updated default filters to match the new price range
       availableOnly: false,
       lotTypes: [],
       distance: "",

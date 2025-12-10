@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       .from("bookings")
       .insert({
         user_id: user.id,
+        user_email: user.email,
         lot_id: lotId,
         lot_name: lotName,
         address,

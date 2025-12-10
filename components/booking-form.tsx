@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Heart, AlertCircle, Loader } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Heart, AlertCircle, Loader, CheckCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface BookingFormProps {
   lotId: string
@@ -9,40 +10,86 @@ interface BookingFormProps {
 }
 
 export default function BookingForm({ lotId, pricePerHour }: BookingFormProps) {
+  const router = useRouter()
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [startTime, setStartTime] = useState("09:00")
   const [endTime, setEndTime] = useState("10:00")
   const [isSaved, setIsSaved] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [lotDetails, setLotDetails] = useState<{ name: string; address: string } | null>(null)
+
+  useEffect(() => {
+    const fetchLotDetails = async () => {
+      try {
+        const response = await fetch(`/api/lots/${lotId}`)
+        if (!response.ok) throw new Error("Failed to fetch lot details")
+        const data = await response.json()
+        setLotDetails({ name: data.name, address: data.address })
+      } catch (err) {
+        console.error("[v0] Error fetching lot details:", err)
+      }
+    }
+    fetchLotDetails()
+  }, [lotId])
+
+  const calculateHours = () => {
+    const [startHour, startMin] = startTime.split(":").map(Number)
+    const [endHour, endMin] = endTime.split(":").map(Number)
+    const start = startHour + startMin / 60
+    const end = endHour + endMin / 60
+    return Math.max(0.5, end - start)
+  }
 
   const calculateCost = () => {
-    const start = Number.parseInt(startTime.split(":")[0])
-    const end = Number.parseInt(endTime.split(":")[0])
-    const hours = Math.max(1, end - start)
-    return hours * pricePerHour
+    const hours = calculateHours()
+    return Math.round(hours * pricePerHour * 100) / 100
   }
 
   const handleBooking = async () => {
+    if (endTime <= startTime) {
+      setError("End time must be after start time")
+      return
+    }
+
+    if (!lotDetails) {
+      setError("Loading lot details...")
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
+
+      const startDateTime = new Date(`${date}T${startTime}:00`)
+      const endDateTime = new Date(`${date}T${endTime}:00`)
+      const hours = calculateHours()
 
       const response = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lotId,
-          date,
-          startTime,
-          endTime,
+          lotName: lotDetails.name,
+          address: lotDetails.address,
+          startDate: startDateTime.toISOString(),
+          endDate: endDateTime.toISOString(),
+          duration: `${hours} hour${hours !== 1 ? "s" : ""}`,
           totalCost: calculateCost(),
+          spotNumber: `A${Math.floor(Math.random() * 100) + 1}`,
         }),
       })
 
-      if (!response.ok) throw new Error("Booking failed")
-      // Redirect or show success message
-      alert("Booking confirmed!")
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Booking failed")
+      }
+
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/my-bookings")
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
@@ -51,6 +98,21 @@ export default function BookingForm({ lotId, pricePerHour }: BookingFormProps) {
   }
 
   const estimatedCost = calculateCost()
+  const hours = calculateHours()
+
+  if (success) {
+    return (
+      <div className="glass-card p-6 rounded-xl space-y-5">
+        <div className="flex flex-col items-center justify-center py-8">
+          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle className="w-8 h-8 text-green-500" />
+          </div>
+          <h3 className="text-2xl font-bold text-center mb-2">Booking Confirmed!</h3>
+          <p className="text-gray-400 text-center">Redirecting to your bookings...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="glass-card p-6 rounded-xl space-y-5">
@@ -100,21 +162,20 @@ export default function BookingForm({ lotId, pricePerHour }: BookingFormProps) {
       {/* Estimated Cost */}
       <div className="bg-primary/10 border border-primary/30 rounded-lg p-4">
         <div className="text-sm text-gray-400 mb-1">Estimated Cost</div>
-        <div className="text-3xl font-bold text-primary">${estimatedCost}</div>
+        <div className="text-3xl font-bold text-primary">${estimatedCost.toFixed(2)}</div>
         <div className="text-xs text-gray-400 mt-2">
-          {Math.max(1, Number.parseInt(endTime.split(":")[0]) - Number.parseInt(startTime.split(":")[0]))} hours × $
-          {pricePerHour}/hr
+          {hours.toFixed(1)} hour{hours !== 1 ? "s" : ""} × ${pricePerHour}/hr
         </div>
       </div>
 
       {/* Book Button */}
       <button
         onClick={handleBooking}
-        disabled={loading}
+        disabled={loading || !lotDetails}
         className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-3 rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
       >
         {loading && <Loader className="w-4 h-4 animate-spin" />}
-        {loading ? "Booking..." : "Book Now"}
+        {loading ? "Booking..." : "Confirm Booking"}
       </button>
 
       {/* Save to Favorites */}
