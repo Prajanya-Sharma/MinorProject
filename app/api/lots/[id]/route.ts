@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    console.log("[v0] GET /api/lots/[id] - Fetching lot:", params.id)
     const supabase = await createClient()
 
     const { data: lot, error } = await supabase.from("parking_lots").select("*").eq("id", params.id).single()
@@ -11,6 +12,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       console.error("[v0] Error fetching lot:", error)
       return NextResponse.json({ error: "Lot not found" }, { status: 404 })
     }
+
+    console.log("[v0] Lot fetched successfully:", lot.name)
 
     const formattedLot = {
       id: lot.id,
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       dailyRate: lot.price_per_hour * 24 * 0.8,
       monthlyRate: lot.price_per_hour * 24 * 30 * 0.6,
       description: lot.description || "Beautiful and secure parking lot with excellent amenities.",
-      amenities: convertAmenities(lot.amenities),
+      amenities: Array.isArray(lot.amenities) ? lot.amenities : convertAmenities(lot.amenities),
       photos: lot.image_url ? [lot.image_url] : ["/busy-city-parking-lot.png"],
       houseRules: [
         "Maximum stay: 30 days",
@@ -47,10 +50,19 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 function convertAmenities(amenities: any): string[] {
-  const result = []
-  if (amenities?.lighting) result.push("24/7 Lighting")
-  if (amenities?.cctv) result.push("CCTV")
-  if (amenities?.covered) result.push("Covered Parking")
-  if (amenities?.evCharging) result.push("EV Charging")
-  return result.length > 0 ? result : ["Standard Amenities"]
+  // Handle null or undefined
+  if (!amenities) return ["Standard Amenities"]
+
+  // Handle object format from database
+  if (typeof amenities === "object" && !Array.isArray(amenities)) {
+    const result = []
+    if (amenities.lighting) result.push("24/7 Lighting")
+    if (amenities.cctv) result.push("CCTV")
+    if (amenities.covered) result.push("Covered Parking")
+    if (amenities.evCharging) result.push("EV Charging")
+    return result.length > 0 ? result : ["Standard Amenities"]
+  }
+
+  // Return default if format is unexpected
+  return ["Standard Amenities"]
 }
