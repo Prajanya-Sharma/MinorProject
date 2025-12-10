@@ -18,6 +18,12 @@ export default function Navbar() {
   // Fetch current user on component mount
   useEffect(() => {
     const fetchUser = async () => {
+      // Skip auth check on landing page
+      if (pathname === "/") {
+        setIsLoading(false)
+        return
+      }
+
       try {
         const response = await fetch("/api/auth/me")
         if (response.ok) {
@@ -32,7 +38,7 @@ export default function Navbar() {
     }
 
     fetchUser()
-  }, [])
+  }, [pathname])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

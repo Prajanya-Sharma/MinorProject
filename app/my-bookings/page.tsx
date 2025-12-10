@@ -20,6 +20,7 @@ interface Booking {
   spot_number: string
   status: BookingStatus
   created_at: string
+  lot_id: string // Include lot_id in the booking data for proper linking
 }
 
 export default function MyBookingsPage() {
@@ -69,16 +70,14 @@ export default function MyBookingsPage() {
   const paginatedBookings = filteredBookings.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const convertedBookings = paginatedBookings.map((booking) => ({
-    id: booking.id,
+    ...booking,
     lotName: booking.lot_name,
-    address: booking.address,
     startDate: booking.start_date,
     endDate: booking.end_date,
-    duration: booking.duration,
     totalCost: booking.total_cost,
     spotNumber: booking.spot_number,
-    status: booking.status,
     createdAt: booking.created_at,
+    lot_id: booking.lot_id, // Include lot_id for View Lot link
   }))
 
   return (

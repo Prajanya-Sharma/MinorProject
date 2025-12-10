@@ -20,6 +20,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
+    const { data: overlappingBookings, error: overlapError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("lot_id", lotId)
+      .eq("spot_number", spotNumber)
+      .neq("status", "cancelled")
+      .or(`and(start_date.lte.${endDate},end_date.gte.${startDate})`)
+
+    if (overlapError) {
+      console.error("[v0] Error checking overlaps:", overlapError)
+    }
+
+    if (overlappingBookings && overlappingBookings.length > 0) {
+      return NextResponse.json(
+        { error: "This spot is already booked for the selected time. Please choose a different time or spot." },
+        { status: 409 },
+      )
+    }
+
     const { data, error } = await supabase
       .from("bookings")
       .insert({
