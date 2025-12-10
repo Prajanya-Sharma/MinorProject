@@ -1,12 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log("[v0] GET /api/lots/[id] - Fetching lot:", params.id)
+    const { id } = await params
+    console.log("[v0] GET /api/lots/[id] - Fetching lot:", id)
     const supabase = await createClient()
 
-    const { data: lot, error } = await supabase.from("parking_lots").select("*").eq("id", params.id).single()
+    const { data: lot, error } = await supabase.from("parking_lots").select("*").eq("id", id).single()
 
     if (error || !lot) {
       console.error("[v0] Error fetching lot:", error)

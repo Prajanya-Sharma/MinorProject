@@ -1,13 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { mockReviews } from "@/lib/mock-data"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const rating = searchParams.get("rating")
     const sort = searchParams.get("sort") || "recent"
 
-    let filtered = mockReviews.filter((review) => review.lotId === params.id)
+    let filtered = mockReviews.filter((review) => review.lotId === id)
 
     if (rating) {
       filtered = filtered.filter((review) => review.rating === Number.parseInt(rating))
