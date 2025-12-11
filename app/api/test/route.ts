@@ -2,7 +2,7 @@
 
 let counter = 0;
 
-export async function GET() {
+export async function POST() {
   counter++;
 
   return Response.json({
