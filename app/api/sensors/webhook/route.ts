@@ -22,82 +22,62 @@ interface ParkingAnalysis {
 }
 
 function analyzeParkingQuality(distances: SensorDistances): ParkingAnalysis {
-  const { center_distance, left_distance, right_distance } = distances
+  const { center_distance, left_distance, right_distance } = distances;
 
-  const warnings: string[] = []
+  const warnings: string[] = [];
 
-  // Determine parking status
-  const avgDistance = (center_distance + left_distance + right_distance) / 3
-  let status: "occupied" | "empty" | "entering" | "exiting"
+  // ===== STATUS LOGIC =====
+  // Only center sensor determines empty/occupied
+  const status: ParkingAnalysis["status"] =
+    center_distance <= 80 ? "occupied" : "empty";
 
-  if (avgDistance > 200) {
-    status = "empty"
-  } else if (avgDistance > 100) {
-    status = "exiting"
-  } else if (avgDistance > 50) {
-    status = "entering"
-  } else {
-    status = "occupied"
-  }
+  // ===== ALIGNMENT LOGIC =====
+  const alignmentDiff = Math.abs(left_distance - right_distance);
+  const alignmentThreshold = 15; // Default threshold
+  const severeMisalignThreshold = 80; // Updated severe threshold
 
-  // Calculate alignment (difference between left and right sensors)
-  const alignmentDiff = Math.abs(left_distance - right_distance)
-  const alignmentThreshold = 15 // cm tolerance
+  let alignment: ParkingAnalysis["alignment"];
 
-  let alignment: ParkingAnalysis["alignment"]
   if (alignmentDiff <= alignmentThreshold) {
-    alignment = "centered"
+    alignment = "centered";
   } else if (alignmentDiff <= alignmentThreshold * 2) {
-    alignment = left_distance < right_distance ? "left_biased" : "right_biased"
-    warnings.push(`Vehicle is ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`)
+    alignment =
+      left_distance < right_distance ? "left_biased" : "right_biased";
+    warnings.push(
+      `Vehicle is ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`
+    );
+  } else if (alignmentDiff < severeMisalignThreshold) {
+    // Still biased but not severe
+    alignment =
+      left_distance < right_distance ? "left_biased" : "right_biased";
+    warnings.push(
+      `Vehicle is ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`
+    );
   } else {
-    alignment = "severely_misaligned"
-    warnings.push(`Severe misalignment detected: ${alignmentDiff.toFixed(1)}cm difference`)
+    alignment = "severely_misaligned";
+    warnings.push(
+      `Severe misalignment detected: ${alignmentDiff.toFixed(1)}cm difference`
+    );
   }
 
-  // Calculate angle deviation
-  const angleDev = Math.atan2(alignmentDiff, 200) * (180 / Math.PI) // Assuming 2m sensor spacing
+  // ===== MISPARKED LOGIC =====
+  const is_misparked = alignment === "severely_misaligned";
 
-  // Calculate center offset
-  const idealCenter = 30 // cm - ideal center distance
-  const centerOffset = Math.abs(center_distance - idealCenter)
-
-  if (centerOffset > 20) {
-    warnings.push(`Vehicle is ${centerOffset.toFixed(1)}cm from ideal center position`)
-  }
-
-  // Check for obstacle detection (very close readings)
-  if (center_distance < 10 || left_distance < 10 || right_distance < 10) {
-    warnings.push("Collision risk: Obstacle detected very close to vehicle")
-  }
-
-  // Calculate quality score (0-100)
-  let qualityScore = 100
-  qualityScore -= Math.min(alignmentDiff * 2, 40) // Max -40 for alignment
-  qualityScore -= Math.min(centerOffset * 1.5, 30) // Max -30 for centering
-  qualityScore -= Math.min(angleDev * 3, 30) // Max -30 for angle
-  qualityScore = Math.max(0, qualityScore)
-
-  // Determine if misparked (quality below 50 or severely misaligned)
-  const is_misparked = qualityScore < 50 || alignment === "severely_misaligned" || centerOffset > 30
-
-  if (is_misparked) {
-    warnings.push("Vehicle is considered misparked - please reposition")
-  }
-
+  // ===== MINIMAL METRICS RETURNED =====
   return {
     status,
     alignment,
-    quality_score: Math.round(qualityScore),
     is_misparked,
+    quality_score: is_misparked ? 0 : 100, // keep field for compatibility
     warnings,
     metrics: {
-      center_offset_cm: Math.round(centerOffset * 10) / 10,
-      angle_deviation_deg: Math.round(angleDev * 10) / 10,
-      space_utilization: Math.round((1 - avgDistance / 250) * 100),
+      center_offset_cm: center_distance, // simply return raw values
+      angle_deviation_deg: 0,            // ignored
+      space_utilization: 0               // ignored
     },
-  }
+  };
 }
+
 
 export async function POST(request: NextRequest) {
   try {

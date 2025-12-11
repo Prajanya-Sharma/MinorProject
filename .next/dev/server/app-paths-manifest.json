@@ -1,0 +1,10 @@
+{
+  "/api/auth/me/route": "app/api/auth/me/route.js",
+  "/api/bookings/history/route": "app/api/bookings/history/route.js",
+  "/api/bookings/route": "app/api/bookings/route.js",
+  "/api/bookings/stats/route": "app/api/bookings/stats/route.js",
+  "/api/favorites/route": "app/api/favorites/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/api/sensors/webhook/route": "app/api/sensors/webhook/route.js"
+}

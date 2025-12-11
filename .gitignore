@@ -1,0 +1,52 @@
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.env
+.venv/
+
+# --- Java ---
+*.class
+*.jar
+*.war
+*.ear
+target/
+build/
+
+# --- IDE / Editor ---
+# VS Code
+.vscode/
+# JetBrains
+.idea/
+*.iml
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Environment Files ---
+.env
+*.env.local
+.env.*
+
+# --- Build outputs ---
+dist/
+build/
+out/
+
+# --- Temporary files ---
+*.tmp
+*.swp
+*.swo
