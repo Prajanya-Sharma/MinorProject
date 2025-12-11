@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 40, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Prajanya/SmartParking/app/api/test/route.ts"],"sourcesContent":["// app/api/test/route.ts\r\n\r\nlet counter = 0;\r\n\r\nexport async function GET() {\r\n  counter++;\r\n\r\n  return Response.json({\r\n    success: true,\r\n    message: \"Request received\",\r\n    count: counter,\r\n    timestamp: new Date().toISOString(),\r\n  });\r\n}\r\n"],"names":[],"mappings":"AAAA,wBAAwB;;;;;AAExB,IAAI,UAAU;AAEP,eAAe;IACpB;IAEA,OAAO,SAAS,IAAI,CAAC;QACnB,SAAS;QACT,SAAS;QACT,OAAO;QACP,WAAW,IAAI,OAAO,WAAW;IACnC;AACF"}}]
+}
