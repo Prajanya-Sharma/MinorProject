@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     // Distances MUST come in the JSON body with these exact keys:
     // `left_distance`, `centre_distance`, `right_distance` (all in cm)
     const left_distance = body.left_distance !== undefined ? Number(body.left_distance) : undefined
-    const centre_distance = body.centre_distance !== undefined ? Number(body.centre_distance) : undefined
+    const centre_distance = body.center_distance !== undefined ? Number(body.center_distance) : undefined
     const right_distance = body.right_distance !== undefined ? Number(body.right_distance) : undefined
 
     // The ESP32 will POST only the three distances in the JSON body.
