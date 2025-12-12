@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] })
 const playfair = Playfair_Display({ subsets: ["latin"], variable: "--font-display" })
 
 export const metadata: Metadata = {
-  title: "SmartParking - Find, Book & Park Smart",
+  title: "Parkwise - Find, Book & Park Smart",
   description: "Revolutionary smart parking app with real-time availability, one-click booking, and instant payment",
   generator: "v0.app",
   icons: {

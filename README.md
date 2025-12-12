@@ -1,8 +1,8 @@
-# smartparkinglandingpage
+# parkwiselandingpage
 
 *Automatically synced with your [v0.app](https://v0.app) deployments*
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/kunals-projects-600220a6/v0-smartparkinglandingpage)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/kunals-projects-600220a6/v0-parkwiselandingpage)
 [![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/js0dFXh9qnk)
 
 ## Overview
@@ -14,7 +14,7 @@ Any changes you make to your deployed app will be automatically pushed to this r
 
 Your project is live at:
 
-**[https://vercel.com/kunals-projects-600220a6/v0-smartparkinglandingpage](https://vercel.com/kunals-projects-600220a6/v0-smartparkinglandingpage)**
+**[https://vercel.com/kunals-projects-600220a6/v0-parkwiselandingpage](https://vercel.com/kunals-projects-600220a6/v0-parkwiselandingpage)**
 
 ## Build your app
 

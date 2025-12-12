@@ -98,7 +98,7 @@ export default function Navbar() {
                 />
               </svg>
             </div>
-            <span className="text-xl font-bold text-white hidden sm:inline">SmartParking</span>
+            <span className="text-xl font-bold text-white hidden sm:inline">ParkWise</span>
           </Link>
 
           {/* Center: Desktop Navigation Links */}

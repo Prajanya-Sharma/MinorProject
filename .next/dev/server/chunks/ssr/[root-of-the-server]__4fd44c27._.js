@@ -73,7 +73,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$vercel$2f$
 ;
 ;
 const metadata = {
-    title: "SmartParking - Find, Book & Park Smart",
+    title: "Parkwise - Find, Book & Park Smart",
     description: "Revolutionary smart parking app with real-time availability, one-click booking, and instant payment",
     generator: "v0.app",
     icons: {
