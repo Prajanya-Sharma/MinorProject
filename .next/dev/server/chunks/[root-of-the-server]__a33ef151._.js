@@ -38,13 +38,12 @@ module.exports = mod;
 "[project]/app/api/test/route.ts [app-route] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// app/api/test/route.ts
 __turbopack_context__.s([
-    "GET",
-    ()=>GET
+    "POST",
+    ()=>POST
 ]);
 let counter = 0;
-async function GET() {
+async function POST() {
     counter++;
     return Response.json({
         success: true,

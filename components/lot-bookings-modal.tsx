@@ -11,15 +11,9 @@ interface Booking {
   total_cost: number
   spot_number: string
   status: string
+  parking_status?: string
   user_email: string
 }
-
-interface RealTimeParkingStatus {
-  parkingStatus: "Occupied" | "Empty" | "Entering" | "Exiting"
-  timeEntered: string | null
-  timeOfExit: string | null
-}
-
 interface LotBookingsModalProps {
   lotId: string
   lotName: string
@@ -27,33 +21,30 @@ interface LotBookingsModalProps {
   onClose: () => void
 }
 
-const getMockRealTimeStatus = (booking: Booking): RealTimeParkingStatus => {
-  // Simulate different statuses based on booking status
-  if (booking.status === "active") {
-    return {
-      parkingStatus: "Occupied",
-      timeEntered: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-      timeOfExit: null,
-    }
+const getRealTimeStatus = (booking: Booking) => {
+  // Use booking.parking_status (set by sensor webhook) when available.
+  // booking.parking_status values: 'normal', 'misparked', 'overstay', etc.
+  let parkingStatus = "Empty"
+  let timeEntered: string | null = null
+  let timeOfExit: string | null = null
+
+  if (booking.parking_status === "misparked") {
+    parkingStatus = "Misparked"
+  } else if (booking.parking_status === "empty") {
+    parkingStatus = "Empty"
+  } else if (booking.status === "active") {
+    parkingStatus = "Occupied"
+    // Optionally show booking start as entered time if available
+    timeEntered = booking.start_date || null
   } else if (booking.status === "completed") {
-    return {
-      parkingStatus: "Empty",
-      timeEntered: new Date(booking.start_date).toISOString(),
-      timeOfExit: new Date(booking.end_date).toISOString(),
-    }
+    parkingStatus = "Empty"
+    timeEntered = booking.start_date || null
+    timeOfExit = booking.end_date || null
   } else if (booking.status === "upcoming") {
-    return {
-      parkingStatus: "Empty",
-      timeEntered: null,
-      timeOfExit: null,
-    }
-  } else {
-    return {
-      parkingStatus: "Empty",
-      timeEntered: null,
-      timeOfExit: null,
-    }
+    parkingStatus = "Empty"
   }
+
+  return { parkingStatus, timeEntered, timeOfExit }
 }
 
 export default function LotBookingsModal({ lotId, lotName, isOpen, onClose }: LotBookingsModalProps) {
@@ -113,6 +104,8 @@ export default function LotBookingsModal({ lotId, lotName, isOpen, onClose }: Lo
     switch (status) {
       case "Occupied":
         return "bg-red-500/20 text-red-400 border-red-500/30"
+      case "Misparked":
+        return "bg-orange-500/20 text-orange-400 border-orange-500/30"
       case "Empty":
         return "bg-gray-500/20 text-gray-400 border-gray-500/30"
       case "Entering":
@@ -153,7 +146,7 @@ export default function LotBookingsModal({ lotId, lotName, isOpen, onClose }: Lo
           ) : (
             <div className="space-y-4">
               {bookings.map((booking) => {
-                const realTimeStatus = getMockRealTimeStatus(booking)
+                const realTimeStatus = getRealTimeStatus(booking)
 
                 return (
                   <div

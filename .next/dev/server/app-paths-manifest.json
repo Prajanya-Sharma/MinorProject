@@ -1,22 +1,13 @@
 {
-  "/add-lot/page": "app/add-lot/page.js",
   "/api/auth/me/route": "app/api/auth/me/route.js",
   "/api/bookings/history/route": "app/api/bookings/history/route.js",
   "/api/bookings/route": "app/api/bookings/route.js",
   "/api/bookings/stats/route": "app/api/bookings/stats/route.js",
   "/api/favorites/route": "app/api/favorites/route.js",
   "/api/lots/[id]/bookings/route": "app/api/lots/[id]/bookings/route.js",
-  "/api/lots/[id]/reviews/route": "app/api/lots/[id]/reviews/route.js",
-  "/api/lots/[id]/route": "app/api/lots/[id]/route.js",
-  "/api/lots/route": "app/api/lots/route.js",
-  "/api/lots/upload/route": "app/api/lots/upload/route.js",
-  "/api/test/route": "app/api/test/route.js",
-  "/browse/page": "app/browse/page.js",
+  "/api/sensors/webhook/route": "app/api/sensors/webhook/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/login/page": "app/login/page.js",
-  "/lots/[id]/page": "app/lots/[id]/page.js",
-  "/my-bookings/page": "app/my-bookings/page.js",
   "/my-lots/page": "app/my-lots/page.js",
-  "/page": "app/page.js",
-  "/signup/page": "app/signup/page.js"
+  "/page": "app/page.js"
 }

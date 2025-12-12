@@ -83,31 +83,60 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$supabase$2f$server$2e
 ;
 ;
 function analyzeParkingQuality(distances) {
-    const { center_distance, left_distance, right_distance } = distances;
+    const { centre_distance, left_distance, right_distance } = distances;
     const warnings = [];
     // ===== STATUS LOGIC =====
-    // Only center sensor determines empty/occupied
-    const status = center_distance <= 80 ? "occupied" : "empty";
+    // New logic:
+    // - If all distances are large (>= UNOCCUPIED_DISTANCE) and roughly equal -> empty
+    // - If centre is close (<= OCCUPIED_THRESHOLD) and left/right are symmetric -> occupied
+    // - If centre indicates occupied but left/right are noticeably asymmetric -> misparked
+    const UNOCCUPIED_DISTANCE = 200 // cm - distances this large indicate no vehicle
+    ;
+    const UNOCCUPIED_TOLERANCE = 10 // cm tolerance for 'equal' when unoccupied
+    ;
+    const OCCUPIED_THRESHOLD = 80 // cm - centre distance below this indicates vehicle present
+    ;
+    // Quick empty check: all distances large and roughly equal
+    const maxDist = Math.max(centre_distance, left_distance, right_distance);
+    const minDist = Math.min(centre_distance, left_distance, right_distance);
+    if (minDist >= UNOCCUPIED_DISTANCE && maxDist - minDist <= UNOCCUPIED_TOLERANCE) {
+        return {
+            status: "empty",
+            alignment: "centered",
+            is_misparked: false,
+            quality_score: 100,
+            warnings: [],
+            metrics: {
+                center_offset_cm: centre_distance,
+                angle_deviation_deg: 0,
+                space_utilization: 0
+            }
+        };
+    }
+    // If centre indicates occupied, proceed to alignment checks
+    const status = centre_distance <= OCCUPIED_THRESHOLD ? "occupied" : "empty";
     // ===== ALIGNMENT LOGIC =====
     const alignmentDiff = Math.abs(left_distance - right_distance);
-    const alignmentThreshold = 15; // Default threshold
-    const severeMisalignThreshold = 80; // Updated severe threshold
+    const alignmentThreshold = 10; // distances within 10cm considered symmetric
+    const MISPARK_THRESHOLD = 25; // above this considered misparked
+    const severeMisalignThreshold = 80; // keep severe threshold for extreme cases
     let alignment;
     if (alignmentDiff <= alignmentThreshold) {
         alignment = "centered";
-    } else if (alignmentDiff <= alignmentThreshold * 2) {
+    } else if (alignmentDiff <= MISPARK_THRESHOLD) {
+        // Some bias but still acceptable parking (slightly off-center)
         alignment = left_distance < right_distance ? "left_biased" : "right_biased";
-        warnings.push(`Vehicle is ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`);
+        warnings.push(`Vehicle slightly ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`);
     } else if (alignmentDiff < severeMisalignThreshold) {
-        // Still biased but not severe
+        // Significant bias - treat as misparked
         alignment = left_distance < right_distance ? "left_biased" : "right_biased";
-        warnings.push(`Vehicle is ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`);
+        warnings.push(`Misparking suspected: ${alignment.replace("_", " ")} by ${alignmentDiff.toFixed(1)}cm`);
     } else {
         alignment = "severely_misaligned";
         warnings.push(`Severe misalignment detected: ${alignmentDiff.toFixed(1)}cm difference`);
     }
     // ===== MISPARKED LOGIC =====
-    const is_misparked = alignment === "severely_misaligned";
+    const is_misparked = alignment === "severely_misaligned" || alignmentDiff >= MISPARK_THRESHOLD;
     // ===== MINIMAL METRICS RETURNED =====
     return {
         status,
@@ -116,7 +145,7 @@ function analyzeParkingQuality(distances) {
         quality_score: is_misparked ? 0 : 100,
         warnings,
         metrics: {
-            center_offset_cm: center_distance,
+            center_offset_cm: centre_distance,
             angle_deviation_deg: 0,
             space_utilization: 0 // ignored
         }
@@ -125,55 +154,127 @@ function analyzeParkingQuality(distances) {
 async function POST(request) {
     try {
         const body = await request.json();
-        const { sensor_id, api_key, spot_number, center_distance, left_distance, right_distance, timestamp } = body;
+        // Distances MUST come in the JSON body with these exact keys:
+        // `left_distance`, `centre_distance`, `right_distance` (all in cm)
+        const left_distance = body.left_distance !== undefined ? Number(body.left_distance) : undefined;
+        const centre_distance = body.centre_distance !== undefined ? Number(body.centre_distance) : undefined;
+        const right_distance = body.right_distance !== undefined ? Number(body.right_distance) : undefined;
+        // The ESP32 will POST only the three distances in the JSON body.
+        // Identify the lot and spot via headers when available (x-lot-id, x-spot-number).
+        const spot_number = request.headers.get("x-spot-number") || "A36";
+        const lotId = request.headers.get("x-lot-id") || "4a41c3f7-015d-44eb-8d63-c22f101c1c36";
+        const timestamp = body.timestamp || Date.now();
         console.log("[v0] Sensor webhook received:", {
-            sensor_id,
             spot_number,
+            lotId,
             distances: {
-                center_distance,
+                centre_distance,
                 left_distance,
                 right_distance
             }
         });
-        if (!sensor_id || !api_key || !spot_number || center_distance === undefined || left_distance === undefined || right_distance === undefined) {
+        if (centre_distance === undefined || left_distance === undefined || right_distance === undefined) {
             return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-                error: "Missing required fields: sensor_id, api_key, spot_number, center_distance, left_distance, right_distance"
+                error: "Missing required distance fields in body: left_distance, centre_distance, right_distance"
             }, {
                 status: 400
             });
         }
         const supabase = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$supabase$2f$server$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["createClient"])();
-        // Verify sensor credentials
-        const { data: sensorConfig, error: sensorError } = await supabase.from("sensor_configs").select("*, parking_lots(*)").eq("sensor_id", sensor_id).eq("api_key", api_key).eq("status", "active").single();
-        if (sensorError || !sensorConfig) {
-            console.error("[v0] Invalid sensor credentials:", sensorError);
+        // Require lot identification via header `x-lot-id` (or body fallback). Without lotId
+        // we cannot insert a parking_events row because `lot_id` is required by the schema.
+        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+        ;
+        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+        ;
+        // Fetch lot info for push notifications and available_spots
+        const { data: lot, error: lotError } = await supabase.from("parking_lots").select("*").eq("id", lotId).single();
+        if (lotError || !lot) {
+            console.error("[v0] Lot not found:", lotError);
             return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$server$2e$js__$5b$app$2d$route$5d$__$28$ecmascript$29$__["NextResponse"].json({
-                error: "Invalid sensor credentials"
+                error: "Invalid lot id"
             }, {
-                status: 401
+                status: 400
             });
         }
-        // Update sensor heartbeat
-        await supabase.from("sensor_configs").update({
-            last_heartbeat: new Date().toISOString()
-        }).eq("id", sensorConfig.id);
-        const lotId = sensorConfig.lot_id;
-        // Analyze parking quality
+        // Fetch last two sensor events for this lot & spot to determine stability
+        const { data: prevEvents } = await supabase.from("parking_events").select("sensor_data").eq("lot_id", lotId).eq("spot_number", spot_number).order("detected_at", {
+            ascending: false
+        }).limit(2);
+        // parse last two raw distances if available
+        const prevReadings = [];
+        if (prevEvents && Array.isArray(prevEvents)) {
+            for (const ev of prevEvents){
+                try {
+                    const raw = ev.sensor_data?.raw_distances;
+                    if (raw && raw.left_distance !== undefined && raw.centre_distance !== undefined && raw.right_distance !== undefined) {
+                        prevReadings.push({
+                            left_distance: Number(raw.left_distance),
+                            centre_distance: Number(raw.centre_distance),
+                            right_distance: Number(raw.right_distance)
+                        });
+                    }
+                } catch  {}
+            }
+        }
+        const lastTwoSame = prevReadings.length === 2 && prevReadings[0].left_distance === prevReadings[1].left_distance && prevReadings[0].centre_distance === prevReadings[1].centre_distance && prevReadings[0].right_distance === prevReadings[1].right_distance;
+        // Compute current analysis using the canonical keys
         const analysis = analyzeParkingQuality({
-            center_distance,
-            left_distance,
-            right_distance,
+            centre_distance: Number(centre_distance),
+            left_distance: Number(left_distance),
+            right_distance: Number(right_distance),
             timestamp
         });
+        // Map analysis.status/alignment to simplified parking_status: misparked | parked | empty
+        let parking_status = "empty";
+        if (analysis.is_misparked && analysis.status === "occupied") parking_status = "misparked";
+        else if (analysis.status === "occupied") parking_status = "parked";
+        else parking_status = "empty";
+        // Determine last stable status (if last two readings were stable)
+        let lastStableStatus = null;
+        if (lastTwoSame) {
+            const last = prevReadings[0];
+            const lastAnalysis = analyzeParkingQuality(last);
+            if (lastAnalysis.is_misparked && lastAnalysis.status === "occupied") lastStableStatus = "misparked";
+            else if (lastAnalysis.status === "occupied") lastStableStatus = "parked";
+            else lastStableStatus = "empty";
+        }
+        // Detect transition only when prior state was stable. If prior state unstable, ignore transitions.
+        let transition = "none";
+        if (lastStableStatus !== null) {
+            if (lastStableStatus === "empty" && parking_status !== "empty") transition = "entry";
+            else if (lastStableStatus !== "empty" && parking_status === "empty") transition = "exit";
+        }
         // Find active booking for this spot
         const now = new Date().toISOString();
         const { data: activeBooking } = await supabase.from("bookings").select("*").eq("lot_id", lotId).eq("spot_number", spot_number).eq("status", "active").lte("start_date", now).gte("end_date", now).single();
-        // Determine event type based on status transition
+        // Capture prior booking parking_status (fetched from DB) for before/after logging
+        const priorBookingStatus = activeBooking?.parking_status ?? null;
+        if (activeBooking) {
+            console.log("[v0] Prior booking.parking_status from DB:", {
+                bookingId: activeBooking.id,
+                priorBookingStatus
+            });
+        }
+        // Determine event type based on detected transition and parking status
         let event_type = "sensor_update";
-        if (analysis.status === "entering") event_type = "entry";
-        if (analysis.status === "exiting") event_type = "exit";
-        if (analysis.is_misparked && analysis.status === "occupied") event_type = "misparked";
+        if (transition === "entry") event_type = "entry";
+        else if (transition === "exit") event_type = "exit";
+        else if (parking_status === "misparked") event_type = "misparked";
         // Create parking event with full analysis
+        // Log final calculated parameters using the JSON keys the ESP32 sends
+        console.log("[v0] Computed sensor params:", {
+            left_distance,
+            centre_distance,
+            right_distance,
+            stable: lastTwoSame,
+            transition,
+            parking_status,
+            event_type,
+            spot_number,
+            lotId,
+            timestamp
+        });
         const { data: event, error: eventError } = await supabase.from("parking_events").insert({
             lot_id: lotId,
             booking_id: activeBooking?.id || null,
@@ -181,12 +282,15 @@ async function POST(request) {
             event_type,
             sensor_data: {
                 raw_distances: {
-                    center_distance,
-                    left_distance,
-                    right_distance
+                    centre_distance: Number(centre_distance),
+                    left_distance: Number(left_distance),
+                    right_distance: Number(right_distance)
                 },
                 analysis,
-                timestamp: timestamp || Date.now()
+                stable: lastTwoSame,
+                transition,
+                parking_status,
+                timestamp
             }
         }).select().single();
         if (eventError) {
@@ -196,6 +300,35 @@ async function POST(request) {
             }, {
                 status: 500
             });
+        }
+        // Update booking.parking_status for the active booking (if one exists)
+        if (activeBooking) {
+            let bookingParkingStatus = null;
+            if (parking_status === "misparked") bookingParkingStatus = "misparked";
+            else if (parking_status === "parked") bookingParkingStatus = "normal";
+            else if (parking_status === "empty") bookingParkingStatus = "normal";
+            if (bookingParkingStatus && activeBooking.parking_status !== bookingParkingStatus) {
+                try {
+                    await supabase.from("bookings").update({
+                        parking_status: bookingParkingStatus
+                    }).eq("id", activeBooking.id);
+                } catch (err) {
+                    console.error("[v0] Failed to update booking parking_status:", err);
+                }
+            }
+        }
+        // After processing, fetch latest parking_status from DB and log before/after
+        if (activeBooking) {
+            try {
+                const { data: latestBooking } = await supabase.from("bookings").select("parking_status").eq("id", activeBooking.id).single();
+                console.log("[v0] Booking.parking_status before/after:", {
+                    bookingId: activeBooking.id,
+                    before: priorBookingStatus,
+                    after: latestBooking?.parking_status ?? null
+                });
+            } catch (err) {
+                console.error("[v0] Failed to fetch latest booking.parking_status:", err);
+            }
         }
         // Handle misparking
         if (analysis.is_misparked && activeBooking) {
@@ -227,9 +360,9 @@ async function POST(request) {
                             penaltyId: penalty?.id
                         }
                     }),
-                    sendPushNotification(sensorConfig.parking_lots.user_id, {
+                    sendPushNotification(lot.user_id, {
                         title: "Misparking Alert",
-                        body: `Vehicle misparked at ${sensorConfig.parking_lots.name}, Spot ${spot_number}. Quality: ${analysis.quality_score}/100`,
+                        body: `Vehicle misparked at ${lot.name}, Spot ${spot_number}. Quality: ${analysis.quality_score}/100`,
                         data: {
                             type: "misparking_owner",
                             bookingId: activeBooking.id,
@@ -259,9 +392,9 @@ async function POST(request) {
                     status: "active"
                 }).eq("id", activeBooking.id);
             }
-            await sendPushNotification(sensorConfig.parking_lots.user_id, {
+            await sendPushNotification(lot.user_id, {
                 title: "Vehicle Entry",
-                body: `Vehicle entered ${sensorConfig.parking_lots.name}, Spot ${spot_number}`,
+                body: `Vehicle entered ${lot.name}, Spot ${spot_number}`,
                 data: {
                     type: "entry",
                     bookingId: activeBooking.id,
@@ -274,21 +407,28 @@ async function POST(request) {
             await supabase.from("bookings").update({
                 status: "completed"
             }).eq("id", activeBooking.id);
-            await supabase.from("parking_lots").update({
-                available_spots: supabase.raw("available_spots + 1")
-            }).eq("id", lotId);
+            // Increment available_spots safely using the last-known lot value from sensorConfig
+            try {
+                const currentAvailable = Number(lot.available_spots ?? 0);
+                await supabase.from("parking_lots").update({
+                    available_spots: currentAvailable + 1
+                }).eq("id", lotId);
+            } catch (err) {
+                // Fallback: attempt plain update without raw arithmetic
+                await supabase.from("parking_lots").update({}).eq("id", lotId);
+            }
             await Promise.all([
                 sendPushNotification(activeBooking.user_id, {
                     title: "Parking Session Completed",
-                    body: `Thank you for using ${sensorConfig.parking_lots.name}`,
+                    body: `Thank you for using ${lot.name}`,
                     data: {
                         type: "exit",
                         bookingId: activeBooking.id
                     }
                 }),
-                sendPushNotification(sensorConfig.parking_lots.user_id, {
+                sendPushNotification(lot.user_id, {
                     title: "Vehicle Exit",
-                    body: `Vehicle exited ${sensorConfig.parking_lots.name}, Spot ${spot_number}`,
+                    body: `Vehicle exited ${lot.name}, Spot ${spot_number}`,
                     data: {
                         type: "exit_owner",
                         bookingId: activeBooking.id,

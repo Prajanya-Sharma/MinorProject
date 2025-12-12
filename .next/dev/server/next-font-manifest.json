@@ -1,13 +1,5 @@
 {
   "app": {
-    "[project]/app/add-lot/page": [
-      "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
-      "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
-    ],
-    "[project]/app/browse/page": [
-      "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
-      "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
-    ],
     "[project]/app/dashboard/page": [
       "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
       "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
@@ -16,23 +8,11 @@
       "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
       "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
     ],
-    "[project]/app/lots/[id]/page": [
-      "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
-      "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
-    ],
-    "[project]/app/my-bookings/page": [
-      "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
-      "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
-    ],
     "[project]/app/my-lots/page": [
       "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
       "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
     ],
     "[project]/app/page": [
-      "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
-      "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
-    ],
-    "[project]/app/signup/page": [
       "static/media/83afe278b6a6bb3c-s.p.3a6ba036.woff2",
       "static/media/2a65768255d6b625-s.p.d19752fb.woff2"
     ]
