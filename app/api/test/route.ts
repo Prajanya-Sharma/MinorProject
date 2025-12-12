@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 interface SensorDistances {
-  centre_distance: number
+  center_distance: number
   left_distance: number
   right_distance: number
   timestamp?: number
@@ -22,22 +22,22 @@ interface ParkingAnalysis {
 }
 
 function analyzeParkingQuality(distances: SensorDistances): ParkingAnalysis {
-  const { centre_distance, left_distance, right_distance } = distances;
+  const { center_distance, left_distance, right_distance } = distances;
 
   const warnings: string[] = [];
 
   // ===== STATUS LOGIC =====
   // New logic:
   // - If all distances are large (>= UNOCCUPIED_DISTANCE) and roughly equal -> empty
-  // - If centre is close (<= OCCUPIED_THRESHOLD) and left/right are symmetric -> occupied
-  // - If centre indicates occupied but left/right are noticeably asymmetric -> misparked
+  // - If center is close (<= OCCUPIED_THRESHOLD) and left/right are symmetric -> occupied
+  // - If center indicates occupied but left/right are noticeably asymmetric -> misparked
   const UNOCCUPIED_DISTANCE = 200 // cm - distances this large indicate no vehicle
   const UNOCCUPIED_TOLERANCE = 10 // cm tolerance for 'equal' when unoccupied
-  const OCCUPIED_THRESHOLD = 80 // cm - centre distance below this indicates vehicle present
+  const OCCUPIED_THRESHOLD = 80 // cm - center distance below this indicates vehicle present
 
   // Quick empty check: all distances large and roughly equal
-  const maxDist = Math.max(centre_distance, left_distance, right_distance)
-  const minDist = Math.min(centre_distance, left_distance, right_distance)
+  const maxDist = Math.max(center_distance, left_distance, right_distance)
+  const minDist = Math.min(center_distance, left_distance, right_distance)
   if (minDist >= UNOCCUPIED_DISTANCE && (maxDist - minDist) <= UNOCCUPIED_TOLERANCE) {
     return {
       status: "empty",
@@ -46,15 +46,15 @@ function analyzeParkingQuality(distances: SensorDistances): ParkingAnalysis {
       quality_score: 100,
       warnings: [],
       metrics: {
-        center_offset_cm: centre_distance,
+        center_offset_cm: center_distance,
         angle_deviation_deg: 0,
         space_utilization: 0,
       },
     }
   }
 
-  // If centre indicates occupied, proceed to alignment checks
-  const status: ParkingAnalysis["status"] = centre_distance <= OCCUPIED_THRESHOLD ? "occupied" : "empty";
+  // If center indicates occupied, proceed to alignment checks
+  const status: ParkingAnalysis["status"] = center_distance <= OCCUPIED_THRESHOLD ? "occupied" : "empty";
 
   // ===== ALIGNMENT LOGIC =====
   const alignmentDiff = Math.abs(left_distance - right_distance);
@@ -91,7 +91,7 @@ function analyzeParkingQuality(distances: SensorDistances): ParkingAnalysis {
     quality_score: is_misparked ? 0 : 100, // keep field for compatibility
     warnings,
     metrics: {
-      center_offset_cm: centre_distance, // simply return raw values
+      center_offset_cm: center_distance, // simply return raw values
       angle_deviation_deg: 0,            // ignored
       space_utilization: 0               // ignored
     },
@@ -104,9 +104,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     // Distances MUST come in the JSON body with these exact keys:
-    // `left_distance`, `centre_distance`, `right_distance` (all in cm)
+    // `left_distance`, `center_distance`, `right_distance` (all in cm)
     const left_distance = body.left_distance !== undefined ? Number(body.left_distance) : undefined
-    const centre_distance = body.centre_distance !== undefined ? Number(body.centre_distance) : undefined
+    const center_distance = body.center_distance !== undefined ? Number(body.center_distance) : undefined
     const right_distance = body.right_distance !== undefined ? Number(body.right_distance) : undefined
 
     // The ESP32 will POST only the three distances in the JSON body.
@@ -118,18 +118,18 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Sensor webhook received:", {
       spot_number,
       lotId,
-      distances: { centre_distance, left_distance, right_distance },
+      distances: { center_distance, left_distance, right_distance },
     })
 
     if (
-      centre_distance === undefined ||
+      center_distance === undefined ||
       left_distance === undefined ||
       right_distance === undefined
     ) {
       return NextResponse.json(
         {
           error:
-            "Missing required distance fields in body: left_distance, centre_distance, right_distance",
+            "Missing required distance fields in body: left_distance, center_distance, right_distance",
         },
         { status: 400 },
       )
@@ -169,10 +169,10 @@ export async function POST(request: NextRequest) {
       for (const ev of prevEvents) {
         try {
           const raw = (ev as any).sensor_data?.raw_distances
-          if (raw && raw.left_distance !== undefined && raw.centre_distance !== undefined && raw.right_distance !== undefined) {
+          if (raw && raw.left_distance !== undefined && raw.center_distance !== undefined && raw.right_distance !== undefined) {
             prevReadings.push({
               left_distance: Number(raw.left_distance),
-              centre_distance: Number(raw.centre_distance),
+              center_distance: Number(raw.center_distance),
               right_distance: Number(raw.right_distance),
             })
           }
@@ -182,12 +182,12 @@ export async function POST(request: NextRequest) {
 
     const lastTwoSame = prevReadings.length === 2 &&
       prevReadings[0].left_distance === prevReadings[1].left_distance &&
-      prevReadings[0].centre_distance === prevReadings[1].centre_distance &&
+      prevReadings[0].center_distance === prevReadings[1].center_distance &&
       prevReadings[0].right_distance === prevReadings[1].right_distance
 
     // Compute current analysis using the canonical keys
     const analysis = analyzeParkingQuality({
-      centre_distance: Number(centre_distance),
+      center_distance: Number(center_distance),
       left_distance: Number(left_distance),
       right_distance: Number(right_distance),
       timestamp,
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
     // Log final calculated parameters using the JSON keys the ESP32 sends
     console.log("[v0] Computed sensor params:", {
       left_distance,
-      centre_distance,
+      center_distance,
       right_distance,
       stable: lastTwoSame,
       transition,
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
         spot_number,
         event_type,
         sensor_data: {
-          raw_distances: { centre_distance: Number(centre_distance), left_distance: Number(left_distance), right_distance: Number(right_distance) },
+          raw_distances: { center_distance: Number(center_distance), left_distance: Number(left_distance), right_distance: Number(right_distance) },
           analysis,
           stable: lastTwoSame,
           transition,
